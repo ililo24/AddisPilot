@@ -22,7 +22,6 @@
 - **Styling**: Tailwind CSS (Lucide React for icons)
 - **3D & Avatar**: React Three Fiber (`@react-three/fiber`, `@react-three/drei`), Three.js
 - **PDF Rendering**: `react-pdf`
-- **AI Integration**: `@axols/webai-js` for localized AI capabilities.
 
 ## 🚀 Getting Started
 
