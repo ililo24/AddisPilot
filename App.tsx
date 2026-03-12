@@ -15,6 +15,8 @@ import { useAuth } from './services/authContext';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import { Home } from './components/Home';
+import { Landing } from './components/Landing';
+import { StudyView } from './components/StudyView';
 import { Notes } from './components/Notes';
 
 // --- INTEGRATION GUIDE ---
@@ -473,12 +475,217 @@ function App() {
   }
 
   if (navStep === 'LANDING' && !user) {
-    return <Home onGetStarted={() => setNavStep('GRADE_SELECT')} />;
+    return <Landing onGetStarted={() => setNavStep('GRADE_SELECT')} />;
   }
 
   // Redirect to dashboard if logged in and at landing
   if (user && navStep === 'LANDING') {
     setNavStep('DASHBOARD');
+  }
+
+  // ── STUDY SESSION: Full-screen StudyView shell ──────────────────────────────
+  // When a student is actively viewing a textbook, the left-sidebar chrome
+  // is replaced by StudyView's top-navbar layout. The existing PDFReader and
+  // avatar+chat sidebar are passed in as render slots.
+  if (navStep === 'VIEWING') {
+    return (
+      <div className="h-screen w-full">
+        <StudyView
+          language={language}
+          onToggleLanguage={toggleLanguage}
+          languageLabel={getLanguageLabel()}
+          selectedGrade={selectedGrade}
+          selectedSubject={selectedSubject}
+          onGoBack={goBack}
+          onFileUpload={handleFileUpload}
+          isLoadingPdf={isLoadingPdf}
+          isFallbackMode={isFallbackMode}
+
+          // ── PDF SLOT ────────────────────────────────────────────────────────
+          // The real PDFReader lives here. The quiz overlay panel rides on
+          // top of it via absolute positioning.
+          pdfSlot={
+            <div className="relative h-full">
+              {/* PDF shrinks to half-width when quiz is active */}
+              <div className={`h-full transition-all duration-500 ease-in-out ${quizActive ? 'w-1/2' : 'w-full'}`}>
+                <PDFReader
+                  onExplain={handleExplain}
+                  onQuiz={handleQuiz}
+                  onTranslate={handleTranslate}
+                  file={file}
+                  startPage={selectedSubject?.startPage}
+                />
+              </div>
+
+              {/* Sliding quiz panel overlay */}
+              <div className={`absolute right-0 top-0 bottom-0 bg-slate-900/95 border-l border-slate-700 transition-all duration-500 ease-in-out overflow-y-auto ${quizActive ? 'w-1/2 translate-x-0' : 'w-1/2 translate-x-full'}`}>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Brain size={24} className="text-emerald-400" />
+                      Mastery Quiz
+                    </h2>
+                    <button onClick={() => setQuizActive(false)} className="p-2 hover:bg-slate-800 rounded-full">
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {quizQuestions.length > 0 && (() => {
+                    const answered = quizAnswers.filter(a => a !== -1).length;
+                    const correct = quizAnswers.filter((a, i) => a !== -1 && a === quizQuestions[i]?.correctIndex).length;
+                    const total = quizQuestions.length;
+                    const allDone = answered === total;
+                    const pct = Math.round((answered / total) * 100);
+                    return (
+                      <div className="mb-6">
+                        <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                          <span>{answered}/{total} answered</span>
+                          <span>{correct} correct</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${pct}%`, background: allDone ? (correct / total >= 0.8 ? '#10b981' : correct / total >= 0.5 ? '#f59e0b' : '#ef4444') : '#6366f1' }} />
+                        </div>
+                        {allDone && (
+                          <div className={`mt-4 p-4 rounded-xl text-center border ${correct / total >= 0.8 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : correct / total >= 0.5 ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-red-500/10 border-red-500/30 text-red-300'}`}>
+                            <div className="text-3xl font-bold mb-1">{correct}/{total}</div>
+                            <div className="text-sm">{correct / total >= 0.8 ? 'Excellent! You have mastered this section.' : correct / total >= 0.5 ? 'Good effort! Review the explanations below.' : 'Keep studying — re-read this section and try again.'}</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {quizQuestions.length === 0 && (
+                    <div className="text-center py-20 text-slate-500 animate-pulse">Generating 5 questions from textbook...</div>
+                  )}
+
+                  <div className="space-y-6">
+                    {quizQuestions.map((q, qIndex) => {
+                      const isAnswered = quizAnswers[qIndex] !== -1;
+                      const isCorrectAnswer = isAnswered && quizAnswers[qIndex] === q.correctIndex;
+                      const diffColor = q.difficulty === 'easy' ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' : q.difficulty === 'hard' ? 'text-red-400 bg-red-400/10 border-red-400/20' : 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+                      return (
+                        <div key={qIndex} className={`p-5 rounded-xl border transition-all duration-300 ${isAnswered ? isCorrectAnswer ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20' : 'bg-slate-800 border-slate-700'}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-semibold text-base text-slate-200 flex-1 pr-3"><span className="text-slate-500 mr-2">{qIndex + 1}.</span>{q.question}</h3>
+                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap ${diffColor}`}>{q.difficulty}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {q.options.map((opt, optIndex) => {
+                              const isSelected = quizAnswers[qIndex] === optIndex;
+                              const isCorrect = q.correctIndex === optIndex;
+                              const showCorrect = isAnswered && isCorrect;
+                              let btnClass = "w-full text-left p-3 rounded-lg border transition-all text-sm ";
+                              if (isAnswered) {
+                                if (isSelected && isCorrect) btnClass += "bg-emerald-500/20 border-emerald-500 text-emerald-200";
+                                else if (isSelected && !isCorrect) btnClass += "bg-red-500/20 border-red-500 text-red-200";
+                                else if (showCorrect) btnClass += "bg-emerald-500/10 border-emerald-500/50 text-emerald-300";
+                                else btnClass += "bg-slate-900/50 border-slate-700/50 text-slate-500";
+                              } else {
+                                btnClass += "bg-slate-900 border-slate-700 hover:bg-slate-700 hover:border-slate-600 text-slate-300";
+                              }
+                              return (
+                                <button key={optIndex} onClick={() => submitQuizAnswer(qIndex, optIndex)} disabled={isAnswered} className={btnClass}>
+                                  <div className="flex justify-between items-center">
+                                    <span className="flex items-center gap-2"><span className="text-xs text-slate-500 font-mono w-4">{String.fromCharCode(65 + optIndex)}.</span>{opt}</span>
+                                    {isSelected && isCorrect && <Check size={16} />}
+                                    {isSelected && !isCorrect && <X size={16} />}
+                                    {!isSelected && showCorrect && <Check size={16} className="text-emerald-400" />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {isAnswered && (
+                            <div className={`mt-3 p-3 rounded-lg text-sm ${isCorrectAnswer ? 'bg-emerald-500/10 text-emerald-300' : 'bg-slate-900/50 text-slate-400'}`}>
+                              <span className="font-bold text-indigo-400">Explanation:</span> {q.explanation}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+
+          // ── CHAT SLOT ───────────────────────────────────────────────────────
+          // The full avatar + Socratic chat sidebar from the original layout.
+          chatSlot={
+            <div className="w-96 bg-slate-950 flex flex-col h-full">
+              {/* Avatar area */}
+              <div className="p-4 border-b border-slate-800 shrink-0">
+                <Avatar analyser={analyserState} isSpeaking={isSpeaking} />
+                <div className="mt-2 flex justify-between items-center text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <Mic size={12} className={isSpeaking || isListening ? "text-red-500 animate-pulse" : ""} />
+                    STATUS: {isSpeaking ? t('status_speaking') : isListening ? "LISTENING..." : t('status_listening')}
+                  </span>
+                  <span className="font-mono text-indigo-400">{providerLabel.toUpperCase()}</span>
+                </div>
+                <div className="mt-4 flex flex-col gap-2">
+                  <button
+                    onClick={handleAskleenjisaaButton}
+                    disabled={isProcessing || !inputMessage.trim()}
+                    className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 
+                      ${inputMessage.trim() ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                  >
+                    {inputMessage.trim() ? (<><Send size={18} />Ask leenjisaa</>) : (<><FileText size={18} />Type to Ask...</>)}
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatHistory.length === 0 && (
+                  <div className="text-center text-slate-600 mt-10">
+                    <p className="text-sm">{t('welcome_msg_viewing')}</p>
+                  </div>
+                )}
+                {chatHistory.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700'}`}>
+                      <ReactMarkdown className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-strong:text-current">
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                ))}
+                {isProcessing && (
+                  <div className="flex justify-start">
+                    <div className="bg-slate-800 p-3 rounded-2xl rounded-bl-none text-xs text-slate-400 animate-pulse">{t('analyzing')}</div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Text input */}
+              <div className="p-3 bg-slate-900 border-t border-slate-800 shrink-0">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage(inputMessage)}
+                    placeholder={t('chat_placeholder')}
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    onClick={() => sendMessage(inputMessage)}
+                    disabled={!inputMessage.trim()}
+                    className="p-2 bg-indigo-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-500"
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        />
+      </div>
+    );
   }
 
   return (
@@ -587,24 +794,12 @@ function App() {
 
                 {navStep === 'VIEWING' && (
                   <div className="h-full flex relative">
-                    {/* Fallback Banner */}
-                    {isFallbackMode && (
-                      <div className="absolute top-0 left-0 right-0 z-20 bg-amber-600/90 text-white text-xs font-bold text-center py-1 flex items-center justify-center gap-2 backdrop-blur-sm">
-                        <WifiOff size={14} />
-                        OFFLINE DEMO MODE: Official server unreachable. Displaying sample content.
-                      </div>
-                    )}
-
-                    {/* PDF Area */}
-                    <div className={`transition-all duration-500 ease-in-out ${quizActive ? 'w-1/2' : 'w-full'}`}>
-                      <PDFReader
-                        onExplain={handleExplain}
-                        onQuiz={handleQuiz}
-                        onTranslate={handleTranslate}
-                        file={file}
-                        startPage={selectedSubject?.startPage}
-                      />
-                    </div>
+                    {/* ── StudyView INTEGRATION NOTE ──────────────────────────
+                      StudyView is now rendered at the App level below (outside
+                      this block) so it can own the full-height shell including
+                      the top navbar. This inner block retains the quiz overlay
+                      only. The PDF + sidebar are passed as slots to StudyView.
+                    ──────────────────────────────────────────────────────── */}
 
                     {/* Quiz Panel Overlay */}
                     <div className={`absolute right-0 top-0 bottom-0 bg-slate-900/95 border-l border-slate-700 transition-all duration-500 ease-in-out overflow-y-auto ${quizActive ? 'w-1/2 translate-x-0' : 'w-1/2 translate-x-full'}`}>

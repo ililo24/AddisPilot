@@ -1,15 +1,50 @@
 import React, { useState } from 'react';
 import { useAuth } from '../services/authContext';
-import { UserPlus, LogIn, Loader2, AlertCircle, FileText } from 'lucide-react';
+import { UserPlus, LogIn, Loader2, AlertCircle, FileText, Phone, MapPin, MessageCircle } from 'lucide-react';
 
 interface SignupProps {
     onSwitchToLogin: () => void;
 }
 
+const ETHIOPIAN_REGIONS = [
+    'Addis Ababa',
+    'Dire Dawa',
+    'Afar',
+    'Amhara',
+    'Benishangul-Gumuz',
+    'Gambella',
+    'Harari',
+    'Oromia',
+    'Sidama',
+    'Somali',
+    'South Ethiopia',
+    'South West Ethiopia',
+    'Tigray',
+];
+
+const REFERRAL_SOURCES = [
+    'Social Media (Facebook, Telegram, etc.)',
+    'Word of Mouth / Friend',
+    'School / Teacher',
+    'Online Advertisement',
+    'Radio or TV',
+    'Flyer or Poster',
+    'Other',
+];
+
+const inputClass =
+    'w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors text-sm';
+const selectClass =
+    'w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors text-sm appearance-none cursor-pointer';
+const labelClass = 'text-xs font-medium text-slate-400 ml-1 flex items-center gap-1.5';
+
 export const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     const { signup, isLoading, error } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [region, setRegion] = useState('');
+    const [referral, setReferral] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [localError, setLocalError] = useState<string | null>(null);
@@ -49,52 +84,128 @@ export const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                         </div>
                     )}
 
+                    {/* Full Name */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-400 ml-1">Full Name</label>
+                        <label className={labelClass}>Full Name</label>
                         <input
                             type="text"
                             required
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Taye Belay"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                            className={inputClass}
                         />
                     </div>
 
+                    {/* Email */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-400 ml-1">Email</label>
+                        <label className={labelClass}>Email</label>
                         <input
                             type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="student@example.com"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                            className={inputClass}
                         />
                     </div>
 
+                    {/* Phone Number */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-400 ml-1">Password</label>
+                        <label className={labelClass}>
+                            <Phone size={12} />
+                            Phone Number
+                        </label>
+                        <div className="flex gap-2">
+                            <span className="flex items-center px-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-400 text-sm font-mono select-none">
+                                🇪🇹 +251
+                            </span>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="9X XXX XXXX"
+                                pattern="[0-9\s\-]{7,12}"
+                                className={`${inputClass} flex-1`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-1">
+                        <label className={labelClass}>Password</label>
                         <input
                             type="password"
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                            className={inputClass}
                         />
                     </div>
 
+                    {/* Confirm Password */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-400 ml-1">Confirm Password</label>
+                        <label className={labelClass}>Confirm Password</label>
                         <input
                             type="password"
                             required
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                            className={inputClass}
                         />
+                    </div>
+
+                    {/* Region */}
+                    <div className="space-y-1">
+                        <label className={labelClass}>
+                            <MapPin size={12} />
+                            Region
+                        </label>
+                        <div className="relative">
+                            <select
+                                required
+                                value={region}
+                                onChange={(e) => setRegion(e.target.value)}
+                                className={selectClass}
+                            >
+                                <option value="" disabled>Select your region…</option>
+                                {ETHIOPIAN_REGIONS.map(r => (
+                                    <option key={r} value={r}>{r}</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* How did you hear about us */}
+                    <div className="space-y-1">
+                        <label className={labelClass}>
+                            <MessageCircle size={12} />
+                            How did you hear about us?
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={referral}
+                                onChange={(e) => setReferral(e.target.value)}
+                                className={selectClass}
+                            >
+                                <option value="">Select an option…</option>
+                                {REFERRAL_SOURCES.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
 
                     <button
